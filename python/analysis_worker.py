@@ -1,4 +1,4 @@
-"""贸智全球 Python 分析 Worker。
+"""贸询智答 Python 市场分析 Worker。
 
 职责只有三件事：从 DuckDB 查询数据、用正式分析库计算、返回结构化 JSON。
 Electron 通过 stdin 发送一行请求，Worker 通过 stdout 返回一行结果。
@@ -15,29 +15,23 @@ from datetime import date
 from difflib import SequenceMatcher
 from pathlib import Path
 
-# scikit-learn 会尝试探测CPU物理核数；演示环境只需要固定线程数，避免产生无关警告。
-os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
-
 import duckdb
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from statsmodels.tsa.arima.model import ARIMA
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATABASE_PATH = Path(
     os.environ.get(
-        "MAOZHI_DATABASE",
-        str(PROJECT_ROOT / "data" / "maozhi-real.duckdb"),
+        "TRADE_INQUIRY_DATABASE",
+        str(PROJECT_ROOT / "data" / "trade-inquiry.duckdb"),
     )
 )
 DATA_EVIDENCE = [{
     "source": "公开贸易、宏观和WITS/UNCTAD TRAINS数据",
     "period": "2020-2025",
-    "note": "客户和交易表为比赛模拟数据，市场数据不是企业内部数据",
+    "note": "市场分析使用公开数据，不代表企业内部经营数据",
 }]
 HS_SEARCH_STOP_WORDS = frozenset({
     "a", "an", "and", "as", "by", "for", "from", "in", "of", "on",
@@ -54,7 +48,7 @@ def success_quality(
 ) -> dict:
     quality = {
         "status": status,
-        "sourceType": "MIXED",
+        "sourceType": "PUBLIC_DATA",
         "missing": missing or [],
         "warnings": warnings or [],
     }
@@ -68,7 +62,7 @@ def failed_response(code: str, message: str, warning: str) -> dict:
         "ok": False,
         "summary": message,
         "evidence": [],
-        "dataQuality": {"status": "UNAVAILABLE", "sourceType": "MIXED", "missing": [], "warnings": [warning]},
+        "dataQuality": {"status": "UNAVAILABLE", "sourceType": "PUBLIC_DATA", "missing": [], "warnings": [warning]},
         "warnings": [warning],
         "error": {"code": code, "message": message},
     }
@@ -287,8 +281,14 @@ def resolve_product(params: dict) -> dict:
 
 def min_max_score(values: list[float], reverse: bool = False) -> list[float]:
     """把一组数转换成0到100分；reverse用于越小越好的指标。"""
-    array = np.asarray(values, dtype=float).reshape(-1, 1)
-    scores = MinMaxScaler().fit_transform(array).ravel() * 100
+    array = np.asarray(values, dtype=float)
+    minimum = float(np.min(array))
+    maximum = float(np.max(array))
+    scores = (
+        (array - minimum) / (maximum - minimum) * 100
+        if maximum > minimum
+        else np.zeros_like(array)
+    )
     if reverse:
         scores = 100 - scores
     return scores.tolist()
@@ -793,159 +793,7 @@ def analyze_markets(params: dict) -> dict:
     )
 
 
-def analyze_customers(params: dict) -> dict:
-    """从客户和订单表计算RFM+G+I、正式K-means、价值和流失风险。"""
-    observation = pd.Timestamp(params.get("observation_date", "2025-12-31"))
-    market = params.get("market")
-    connection = connect()
-    customer_frame = connection.execute(
-        """
-        SELECT
-            customer_id,
-            country_iso3 AS country_code,
-            customer_type,
-            company_size
-        FROM dim_customer
-        """
-    ).df()
-    transaction_frame = connection.execute(
-        """
-        SELECT
-            order_id,
-            line_id,
-            customer_id,
-            order_date,
-            hs_code AS hs6,
-            net_sales_usd AS net_amount_usd,
-            country_iso3 AS country_code
-        FROM fact_transaction
-        WHERE status = 'normal'
-        """
-    ).df()
-    connection.close()
-    if market:
-        customer_frame = customer_frame[customer_frame.country_code == market]
-        transaction_frame = transaction_frame[transaction_frame.country_code == market]
-    transaction_frame["order_date"] = pd.to_datetime(transaction_frame["order_date"])
-    first_order_dates = transaction_frame.groupby("customer_id")["order_date"].min()
-    customer_frame["first_order_date"] = customer_frame["customer_id"].map(first_order_dates)
-    rows = []
-    for customer in customer_frame.itertuples(index=False):
-        orders = transaction_frame[transaction_frame.customer_id == customer.customer_id]
-        if orders.empty:
-            continue
-        recent = orders[orders.order_date >= observation - pd.DateOffset(months=24)]
-        recent_12 = recent[recent.order_date >= observation - pd.DateOffset(months=12)]
-        previous_12 = recent[recent.order_date < observation - pd.DateOffset(months=12)]
-        recent_6 = orders[orders.order_date >= observation - pd.DateOffset(months=6)]
-        previous_6 = orders[(orders.order_date < observation - pd.DateOffset(months=6)) & (orders.order_date >= observation - pd.DateOffset(months=12))]
-        first_order_age = (observation - pd.Timestamp(customer.first_order_date)).days
-        last_order = orders.order_date.max()
-        frequency = len(recent)
-        monetary = float(recent.net_amount_usd.sum())
-        previous_amount = float(previous_12.net_amount_usd.sum())
-        growth = (float(recent_12.net_amount_usd.sum()) - previous_amount) / max(previous_amount, 1.0)
-        rows.append({"customer_id": customer.customer_id, "country_code": customer.country_code, "customer_type": customer.customer_type, "company_size": customer.company_size, "first_order_date": pd.Timestamp(customer.first_order_date).date().isoformat(), "R": (observation - last_order).days, "F": frequency, "M": monetary, "G": growth, "I": int(orders.hs6.nunique()), "recent_6_frequency": len(recent_6), "previous_6_frequency": len(previous_6), "recent_6_amount": float(recent_6.net_amount_usd.sum()), "previous_6_amount": float(previous_6.net_amount_usd.sum()), "new_customer": first_order_age < 180, "churn_sample_sufficient": first_order_age >= 365})
-    frame = pd.DataFrame(rows)
-    if frame.empty:
-        return failed_response("CUSTOMER_UNAVAILABLE", "没有可分析的客户交易数据。", "请检查客户市场或订单数据。")
-    eligible = frame[~frame.new_customer].copy()
-    if len(eligible) >= 6:
-        feature_matrix = StandardScaler().fit_transform(eligible[["R", "F", "M", "G", "I"]])
-        best_model = None
-        best_score = -1
-        # 负责人要求K在2到6之间自动选择；轮廓系数越高，分群越容易解释。
-        for cluster_count in range(2, min(6, len(eligible) - 1) + 1):
-            model = KMeans(n_clusters=cluster_count, random_state=42, n_init=20).fit(feature_matrix)
-            score = silhouette_score(feature_matrix, model.labels_)
-            if score > best_score:
-                best_model, best_score = model, score
-        eligible["cluster"] = best_model.labels_
-        frame.loc[eligible.index, "cluster"] = eligible["cluster"]
-        cluster_count = int(best_model.n_clusters)
-    else:
-        frame["cluster"] = 0
-        cluster_count = 1
-        best_score = None
-    for column in ["M", "F", "R", "G"]:
-        scaler = MinMaxScaler()
-        values = scaler.fit_transform(eligible[[column]]).ravel() * 100 if len(eligible) else np.array([])
-        frame.loc[eligible.index, f"{column}_score"] = 100 - values if column == "R" else values
-    # 客户价值是交易价值，不是利润价值：M为主，F/R/G为辅助。
-    frame["value_score"] = 0.5 * frame.M_score + 0.2 * frame.F_score + 0.1 * frame.R_score + 0.2 * frame.G_score
-    frame["value_grade"] = frame.value_score.map(lambda value: "S" if value >= 85 else "A" if value >= 70 else "B" if value >= 50 else "C")
-    frame.loc[frame.new_customer, "value_grade"] = "NEW"
-    # 用客户历史订单间隔计算D，而不是用最近一次间隔代替历史平均。
-    interval_rows = []
-    for customer_id in frame.customer_id:
-        customer_orders = transaction_frame[transaction_frame.customer_id == customer_id].sort_values("order_date")
-        if len(customer_orders) >= 2:
-            intervals = customer_orders.order_date.diff().dt.days.dropna()
-            interval_rows.append(float(intervals.mean()))
-        else:
-            interval_rows.append(np.nan)
-    frame["avg_order_interval_days"] = interval_rows
-    frame["avg_order_interval_days"] = frame["avg_order_interval_days"].fillna(frame["R"].clip(lower=1))
-    frame["D"] = frame["R"] / frame["avg_order_interval_days"]
-    frame["Fd"] = (frame["previous_6_frequency"] - frame["recent_6_frequency"]) / frame["previous_6_frequency"].replace(0, np.nan)
-    frame["Fd"] = frame["Fd"].fillna(0).clip(lower=0)
-    frame["Md"] = (frame["previous_6_amount"] - frame["recent_6_amount"]) / frame["previous_6_amount"].replace(0, np.nan)
-    frame["Md"] = frame["Md"].fillna(0).clip(lower=0)
-    frame["churn_score"] = (0.4 * frame.D + 0.3 * frame.Fd + 0.3 * frame.Md) * 100
-    frame.loc[~frame.churn_sample_sufficient, "churn_score"] = np.nan
-    frame["churn_grade"] = frame.churn_score.map(lambda value: "HIGH" if value >= 70 else "MEDIUM" if value >= 40 else "LOW")
-    frame.loc[frame.churn_score.isna(), "churn_grade"] = "INSUFFICIENT_SAMPLE"
-    # 将机器学习簇转换成业务可读名称；名称只是解释，不改变聚类标签。
-    cluster_summary = frame.groupby("cluster").agg(mean_value=("value_score", "mean"), mean_churn=("churn_score", "mean")).sort_values("mean_value", ascending=False)
-    cluster_names = {}
-    if len(cluster_summary) >= 4:
-        value_order = list(cluster_summary.index)
-        stable = min(value_order[:2], key=lambda item: cluster_summary.loc[item, "mean_churn"])
-        risk = max(value_order[:2], key=lambda item: cluster_summary.loc[item, "mean_churn"])
-        cluster_names[stable] = "高价值稳定"
-        cluster_names[risk] = "高价值风险"
-        remaining = [item for item in value_order if item not in (stable, risk)]
-        if remaining:
-            cluster_names[remaining[0]] = "成长型"
-        for item in remaining[1:]:
-            cluster_names[item] = "低价值长尾"
-    else:
-        for item in cluster_summary.index:
-            cluster_names[item] = f"客户群{int(item) + 1}"
-    def cluster_label(value):
-        if pd.isna(value):
-            return "NEW"
-        return cluster_names.get(value, f"客户群{int(value) + 1}")
-
-    frame["cluster_label"] = frame.cluster.map(cluster_label)
-    clusters = []
-    for cluster_id, group in frame.groupby("cluster"):
-        clusters.append({"cluster": int(cluster_id), "label": cluster_names.get(cluster_id, f"客户群{int(cluster_id) + 1}"), "size": len(group), "mean_value_score": round(float(group.value_score.mean()), 2)})
-    customer_records = frame.drop(columns=["M_score", "F_score", "R_score", "G_score", "avg_order_interval_days", "D", "Fd", "Md", "recent_6_frequency", "previous_6_frequency", "recent_6_amount", "previous_6_amount"], errors="ignore").replace({np.nan: None}).to_dict(orient="records")
-    data = {"scope": {"market": market, "product": "ALL_PRODUCTS"}, "observation_date": observation.date().isoformat(), "customers": customer_records, "clusters": clusters, "cluster_model": {"algorithm": "K-means", "k": cluster_count, "selection": "轮廓系数主导、业务可解释性校验", "silhouette_score": best_score, "standardization": "StandardScaler"}, "value_model": {"formula": "0.5M'+0.2F'+0.1R'+0.2G'", "normalization": "全体客户池MinMaxScaler", "grades": {"S": 85, "A": 70, "B": 50}}, "churn_model": {"type": "规则评分，不是机器学习预测", "windows": "两个6个月", "grades": {"HIGH": 70, "MEDIUM": 40}, "new_customer_rule": "首单距今<6个月不参与K-means；<12个月不参与流失分级"}, "dataset_note": "比赛演示模拟数据，非真实企业数据"}
-    return response(f"已完成{len(frame)}家客户的正式K-means分群、价值和流失风险分析。", data, ["客户数据为比赛模拟数据，价值分不代表利润，流失分不是概率。"])
-
-
-def recommend_operations(params: dict) -> dict:
-    """按负责人确认的客户类型动作白名单生成策略卡。"""
-    market_analysis = params.get("market_analysis")
-    customer_analysis = params.get("customer_analysis")
-    if not isinstance(market_analysis, dict) or not isinstance(customer_analysis, dict):
-        return failed_response("ANALYSIS_PREREQUISITE_REQUIRED", "生成策略需要市场分析和客户分析结果。", "请先完成市场分析和客户分析。")
-    market = params.get("target_market") or ((market_analysis.get("markets") or [{}])[0].get("market", "PHL"))
-    action_map = {"高价值稳定": ["提高供货优先级", "交叉销售", "组合销售"], "成长型": ["样品/试单邀请", "相邻品类推荐"], "高价值风险": ["人工回访", "召回"], "低价值长尾": ["邮件/消息触达", "展会触达"]}
-    cadence_map = {"高价值稳定": "季度回访", "成长型": "月度触达", "高价值风险": "2周内", "低价值长尾": "半年"}
-    cards = []
-    for cluster in customer_analysis.get("clusters", []):
-        label = cluster.get("label", "低价值长尾")
-        if label.startswith("客户群"):
-            label = ["高价值稳定", "成长型", "高价值风险", "低价值长尾"][int(cluster.get("cluster", 0)) % 4]
-        cards.append({"recommendation_id": f"REC-{market}-{int(cluster.get('cluster', 0)) + 1:02d}", "target_market": market, "customer_segment": label, "customer_count": cluster.get("size", 0), "objective": "提升该市场客户经营效率", "actions": action_map[label], "cadence": cadence_map[label], "success_metrics": ["90天复购率", "样品转化率", "新市场首单周期"], "evidence": ["市场排名与评分", "客户分群、价值和风险等级"], "limits": ["第一版无执行回流，不代表成交承诺"]})
-    data = {"target_market": market, "hs6": market_analysis.get("hs6"), "customer_scope": customer_analysis.get("scope"), "cards": cards, "action_whitelist": sorted({action for actions in action_map.values() for action in actions}), "forbidden": ["具体价格", "折扣", "账期", "赠品"]}
-    return response(f"已生成{market}市场的{len(cards)}张差异化策略卡。", data, ["策略为建议方向，需企业在真实业务中验证。"])
-
-
-METHODS = {"resolve_product": resolve_product, "analyze_markets": analyze_markets, "analyze_customers": analyze_customers, "recommend_operations": recommend_operations}
+METHODS = {"resolve_product": resolve_product, "analyze_markets": analyze_markets}
 
 
 def main() -> None:
@@ -956,7 +804,7 @@ def main() -> None:
             method = request.get("method")
             params = request.get("params") or {}
             if method not in METHODS:
-                result = failed_response("UNKNOWN_METHOD", f"未知分析方法：{method}", "请使用四个已注册业务工具。")
+                result = failed_response("UNKNOWN_METHOD", f"未知分析方法：{method}", "请使用商品解析或市场分析方法。")
             else:
                 result = METHODS[method](params)
         except Exception as error:

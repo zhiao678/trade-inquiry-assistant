@@ -1,1 +1,1 @@
-data/maozhi-real.duckdb filter=lfs diff=lfs merge=lfs -text
+data/trade-inquiry.duckdb filter=lfs diff=lfs merge=lfs -text

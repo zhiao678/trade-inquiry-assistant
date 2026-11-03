@@ -53,7 +53,7 @@ python3 -m venv .venv
 .venv/bin/pip install -r python/requirements.txt
 ```
 
-项目默认读取 `data/maozhi-real.duckdb`。该数据库使用 Git LFS 管理；当前产品主流程使用其中的公开贸易、宏观、关税和商品编码数据。
+项目默认读取 `data/trade-inquiry.duckdb`。该数据库使用 Git LFS 管理，包含公开贸易、宏观、关税和商品编码数据。
 
 首次使用前，在项目根目录复制 `.env.example` 为 `.env` 并配置 LLM：
 

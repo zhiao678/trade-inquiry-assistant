@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { AgentStreamEvent, ProviderConfig } from './runtime'
 import type { Session } from './sessions'
 
-contextBridge.exposeInMainWorld('maozhi', {
+contextBridge.exposeInMainWorld('tradeInquiry', {
   streamChat: (requestId: string, sessionId: string, content: string, provider: ProviderConfig, onEvent: (event: AgentStreamEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AgentStreamEvent & { requestId: string }) => {
       if (payload.requestId === requestId) onEvent(payload)

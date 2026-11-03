@@ -7,7 +7,7 @@ import { buildInquiryAnalysis, type InquiryAnalysisInput } from './inquiry'
 export type EvidenceItem = { source: string; period?: string; scope?: string; note?: string }
 export type DataQuality = {
   status: 'OK' | 'PARTIAL' | 'UNAVAILABLE'
-  sourceType: 'SIMULATED_DEMO' | 'PUBLIC_DATA' | 'USER_PROVIDED' | 'MIXED'
+  sourceType: 'PUBLIC_DATA' | 'USER_PROVIDED'
   missing: string[]
   warnings: string[]
   forecastMethod?: string
@@ -29,7 +29,7 @@ export type ToolDefinition = {
   execute: ToolExecutor
 }
 
-const QUALITY: DataQuality = { status: 'OK', sourceType: 'MIXED', missing: [], warnings: [] }
+const QUALITY: DataQuality = { status: 'OK', sourceType: 'PUBLIC_DATA', missing: [], warnings: [] }
 // 开发时优先使用项目虚拟环境；打包时由构建流程提供对应平台的Python运行时。
 const projectPython = process.platform === 'win32'
   ? path.join(__dirname, '../.venv/Scripts/python.exe')
@@ -40,9 +40,9 @@ const workerPath = app.isPackaged
   ? path.join(process.resourcesPath, 'app.asar.unpacked/python/analysis_worker.py')
   : path.join(__dirname, '../python/analysis_worker.py')
 const defaultDatabasePath = app.isPackaged
-  ? path.join(process.resourcesPath, 'app.asar.unpacked/data/maozhi-real.duckdb')
-  : path.join(__dirname, '../data/maozhi-real.duckdb')
-const databasePath = process.env.MAOZHI_DATABASE || defaultDatabasePath
+  ? path.join(process.resourcesPath, 'app.asar.unpacked/data/trade-inquiry.duckdb')
+  : path.join(__dirname, '../data/trade-inquiry.duckdb')
+const databasePath = process.env.TRADE_INQUIRY_DATABASE || defaultDatabasePath
 
 // Worker和数据库都支持通过环境变量替换，便于后续接入数据组的正式数据包。
 
@@ -52,7 +52,7 @@ async function callPython(method: string, params: Record<string, unknown>): Prom
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        MAOZHI_DATABASE: databasePath,
+        TRADE_INQUIRY_DATABASE: databasePath,
         PYTHONUTF8: '1',
         PYTHONIOENCODING: 'utf-8'
       }

@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { WorkMessage, dimensionNames, money, percent, readAnalysis, score, yoyClass, yoyText } from './data';
-import { CompareMarkets, Empty, Ranking, Trend } from './Charts';
+import { CompareMarkets, Empty, Ranking, Trend } from './MarketCharts';
 import { InquirySummary } from './InquirySummary';
 import { WorldMap } from './WorldMap';
 import './workbench.css';
 
 export function Workbench({ messages, onPrompt }: { messages: WorkMessage[]; onPrompt: (text: string) => void }) {
   const analysis = useMemo(()=>readAnalysis(messages),[messages]);
-  const [page,setPage] = useState<'welcome'|'map'|'dashboard'>(()=>localStorage.getItem('maozhi-workbench-seen')?'map':'welcome');
+  const [page,setPage] = useState<'welcome'|'map'|'dashboard'>(()=>localStorage.getItem('trade-inquiry-workbench-seen')?'map':'welcome');
   const [selected,setSelected] = useState('');
   const [focused,setFocused] = useState(false);
   const [cardOpen,setCardOpen] = useState(false);
@@ -20,10 +20,10 @@ export function Workbench({ messages, onPrompt }: { messages: WorkMessage[]; onP
   const marketStripRef = useRef<HTMLDivElement>(null);
   const markets = analysis.markets?.markets || [];
   const market = markets.find(m=>m.market===selected) || markets[0];
-  const enter = () => { localStorage.setItem('maozhi-workbench-seen','1'); setPage('map'); };
+  const enter = () => { localStorage.setItem('trade-inquiry-workbench-seen','1'); setPage('map'); };
   useEffect(()=>{
     if(!analysis.inquiryKey)return;
-    localStorage.setItem('maozhi-workbench-seen','1');
+    localStorage.setItem('trade-inquiry-workbench-seen','1');
     setPage('map');
   },[analysis.inquiryKey]);
   useEffect(()=>{
@@ -31,7 +31,7 @@ export function Workbench({ messages, onPrompt }: { messages: WorkMessage[]; onP
     setSelected(analysis.markets?.markets[0]?.market || '');
     setFocused(false);
     if(!analysis.markets?.markets.length)return;
-    localStorage.setItem('maozhi-workbench-seen','1');
+    localStorage.setItem('trade-inquiry-workbench-seen','1');
     setPage(p=>p==='welcome'?'map':p);
     const timer=window.setTimeout(()=>setFocused(true),650);
     return ()=>window.clearTimeout(timer);

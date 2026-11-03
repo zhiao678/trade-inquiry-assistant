@@ -9,7 +9,7 @@ import pandas as pd
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT_DATABASE = PROJECT_ROOT / "data" / "maozhi-real.duckdb"
+DEFAULT_OUTPUT_DATABASE = PROJECT_ROOT / "data" / "trade-inquiry.duckdb"
 
 REQUIRED_SOURCE_FILES = (
     "trade.duckdb",
@@ -121,25 +121,6 @@ REQUIRED_DATABASE_COLUMNS = {
         "year",
         "tc",
     },
-    "dim_customer": {
-        "customer_id",
-        "country_iso3",
-        "customer_type",
-        "company_size",
-        "segment",
-        "data_note",
-    },
-    "fact_transaction": {
-        "order_id",
-        "line_id",
-        "customer_id",
-        "order_date",
-        "hs_code",
-        "net_sales_usd",
-        "status",
-        "country_iso3",
-        "data_note",
-    },
     "metadata": {
     "dataset_version",
     "source_type",
@@ -147,7 +128,6 @@ REQUIRED_DATABASE_COLUMNS = {
     "tariff_year",
     "target_hs6",
     "market_data_type",
-    "customer_data_type",
     },
     "fact_tariff": set(REQUIRED_TARIFF_COLUMNS),
     "dim_country": set(REQUIRED_COUNTRY_COLUMNS),
@@ -165,7 +145,7 @@ TARGET_HS6 = "851671"
 def parse_args():
     """读取跨平台命令行参数。"""
     parser = ArgumentParser(
-        description="根据数据组交付文件构建贸智全球真实数据库。"
+        description="根据数据交付文件构建贸询智答市场数据库。"
     )
     parser.add_argument(
         "--source-dir",

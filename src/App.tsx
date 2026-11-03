@@ -45,9 +45,9 @@ function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig>(() => ({
     provider: "deepseek",
-    apiKey: localStorage.getItem("maozhi-api-key") || "",
-    model: localStorage.getItem("maozhi-model") || "",
-    baseUrl: localStorage.getItem("maozhi-base-url") || undefined,
+    apiKey: localStorage.getItem("trade-inquiry-api-key") || "",
+    model: localStorage.getItem("trade-inquiry-model") || "",
+    baseUrl: localStorage.getItem("trade-inquiry-base-url") || undefined,
   }));
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -56,7 +56,7 @@ function App() {
 
   useEffect(() => {
     void (async () => {
-      const stored = await window.maozhi.listSessions();
+      const stored = await window.tradeInquiry.listSessions();
       setSessions(stored);
       if (stored[0]) {
         setSessionId(stored[0].id);
@@ -70,7 +70,7 @@ function App() {
   useEffect(
     () => () => {
       if (activeRequest.current) {
-        window.maozhi.cancelChat(activeRequest.current.id);
+        window.tradeInquiry.cancelChat(activeRequest.current.id);
         activeRequest.current.cleanup();
       }
     },
@@ -105,12 +105,12 @@ function App() {
   }, [input]);
 
   async function refreshSessions() {
-    setSessions(await window.maozhi.listSessions());
+    setSessions(await window.tradeInquiry.listSessions());
   }
 
   async function createNewSession() {
     if (sending) return;
-    const session = await window.maozhi.createSession();
+    const session = await window.tradeInquiry.createSession();
     setSessions((current) => [session, ...current]);
     setSessionId(session.id);
     setMessages(toUiMessages(session.messages, session.id));
@@ -134,10 +134,10 @@ function App() {
 
   function saveProvider(next: ProviderConfig) {
     setProvider(next);
-    localStorage.setItem("maozhi-api-key", next.apiKey);
-    localStorage.setItem("maozhi-model", next.model);
-    if (next.baseUrl) localStorage.setItem("maozhi-base-url", next.baseUrl);
-    else localStorage.removeItem("maozhi-base-url");
+    localStorage.setItem("trade-inquiry-api-key", next.apiKey);
+    localStorage.setItem("trade-inquiry-model", next.model);
+    if (next.baseUrl) localStorage.setItem("trade-inquiry-base-url", next.baseUrl);
+    else localStorage.removeItem("trade-inquiry-base-url");
   }
 
   async function sendMessage(event?: FormEvent) {
@@ -171,7 +171,7 @@ function App() {
       activeRequest.current?.cleanup();
       activeRequest.current = null;
     };
-    const cleanup = window.maozhi.streamChat(
+    const cleanup = window.tradeInquiry.streamChat(
       requestId,
       sessionId,
       content,

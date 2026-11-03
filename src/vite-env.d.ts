@@ -17,7 +17,7 @@ type AgentStreamEvent =
 type PersistedSession = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[] }
 
 interface Window {
-  maozhi: {
+  tradeInquiry: {
     streamChat: (requestId: string, sessionId: string, content: string, provider: ProviderConfig, onEvent: (event: AgentStreamEvent) => void) => () => void
     cancelChat: (requestId: string) => void
     listSessions: () => Promise<PersistedSession[]>
