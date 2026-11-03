@@ -172,3 +172,76 @@
   .wb-market-strip-meta { display: none; }
   .wb-market-chips { flex-wrap: nowrap; justify-content: flex-start; }
 }
+
+/* Inquiry analysis is the product entry point; keep it compact so the market
+   remains visible while the user checks extracted fields and missing details. */
+.wb-inquiry-summary {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 18px;
+  margin: 0 8px 12px;
+  padding: 14px 16px;
+  border: 1px solid #dce7ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .72);
+  box-shadow: 0 8px 22px rgba(49, 83, 112, .07);
+}
+.wb-inquiry-head { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+.wb-inquiry-head h2 { margin: 5px 0 0; color: #355e78; font-size: 16px; }
+.wb-completeness { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 8px; }
+.wb-completeness>span { height: 6px; overflow: hidden; border-radius: 99px; background: #e7eef3; }
+.wb-completeness>span i { display: block; height: 100%; border-radius: inherit; background: #4e87ab; }
+.wb-completeness strong { color: #356d91; font-size: 13px; }
+.wb-completeness small { grid-column: 1/-1; color: #8a9cab; font-size: 9.5px; }
+.wb-inquiry-content { display: grid; grid-template-columns: minmax(250px, 1.4fr) minmax(150px, .8fr) minmax(180px, 1fr) auto; align-items: center; gap: 14px; min-width: 0; }
+.wb-inquiry-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 0; min-width: 0; }
+.wb-inquiry-fields div { min-width: 0; }
+.wb-inquiry-fields dt { margin-bottom: 2px; color: #9aa9b5; font-size: 9px; }
+.wb-inquiry-fields dd { overflow: hidden; margin: 0; color: #45677e; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.wb-inquiry-gaps { min-width: 0; }
+.wb-inquiry-gaps>span { display: block; margin-bottom: 6px; color: #7e91a1; font-size: 9.5px; }
+.wb-inquiry-gaps>div { display: flex; flex-wrap: wrap; gap: 4px; }
+.wb-inquiry-gaps b { padding: 3px 6px; border-radius: 4px; background: #eef3f6; color: #718695; font-size: 9px; font-weight: 500; }
+.wb-inquiry-gaps b.high { background: #fbf0e2; color: #9a7037; }
+.wb-inquiry-risk { min-width: 0; padding-left: 10px; border-left: 3px solid #88a9bd; }
+.wb-inquiry-risk span { color: #4d6e82; font-size: 10.5px; font-weight: 650; }
+.wb-inquiry-risk p { margin: 3px 0 0; color: #8799a6; font-size: 9.5px; line-height: 1.45; }
+.wb-risk-high { border-left-color: #c67a6e; }
+.wb-risk-medium { border-left-color: #c99a4b; }
+.wb-inquiry-action { white-space: nowrap; }
+.wb-followup-panel { margin: 16px 8px 8px; padding: 18px 20px; border-top: 1px solid #dce7ef; border-bottom: 1px solid #dce7ef; background: rgba(255,255,255,.34); }
+.wb-followup-panel header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.wb-followup-panel h2 { margin: 5px 0 0; color: #41667f; font-size: 17px; }
+.wb-followup-panel ol { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; margin: 0; padding: 0; list-style: none; }
+.wb-followup-panel li { display: flex; align-items: baseline; gap: 9px; color: #657f91; font-size: 11px; line-height: 1.55; }
+.wb-followup-panel li span { flex: 0 0 auto; color: #9aabb7; font-size: 9px; }
+.wb-followup-panel>p { margin: 0; color: #718797; font-size: 11px; }
+@media(max-width:1350px) {
+  .wb-inquiry-summary { grid-template-columns: 145px minmax(0,1fr); }
+  .wb-inquiry-content { grid-template-columns: minmax(220px,1.25fr) minmax(130px,.7fr) minmax(170px,1fr); }
+  .wb-inquiry-action { grid-column: 2/4; justify-self: end; }
+}
+@media(max-width:1050px) {
+  .wb-inquiry-summary { grid-template-columns: 1fr; }
+  .wb-inquiry-head { flex-direction: row; align-items: center; }
+  .wb-completeness { width: 180px; }
+  .wb-inquiry-content { grid-template-columns: 1fr 1fr; }
+  .wb-inquiry-action { grid-column: auto; justify-self: end; }
+}
+@media(max-height:820px) {
+  .wb-inquiry-summary { padding-top: 10px; padding-bottom: 10px; }
+  .wb-inquiry-risk { display: none; }
+  .wb-inquiry-content { grid-template-columns: 1.2fr .8fr auto; }
+  .wb-inquiry-action { grid-column: auto; }
+}
+@media(max-height:740px) {
+  .wb-stage { padding-bottom: 12px; }
+  .wb-header { padding-top: 12px; }
+  .wb-page-heading { padding-top: 10px; padding-bottom: 8px; }
+  .wb-page-heading h1 { margin-top: 5px; margin-bottom: 4px; font-size: 21px; }
+  .wb-inquiry-summary { margin-bottom: 8px; padding-top: 8px; padding-bottom: 8px; }
+  .wb-map-canvas { min-height: 180px; }
+  .wb-map-bottom { min-height: 46px; padding-top: 4px; }
+  .wb-market-chips button { height: 38px; }
+  .wb-footer { display: none; }
+}

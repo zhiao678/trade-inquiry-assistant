@@ -292,10 +292,10 @@ function App() {
             <button onClick={() => setInput("帮我分析这封询盘：We need 500 household coffee makers for Malaysia.")}>
               分析示例询盘
             </button>
-            <button onClick={() => setInput("这封询盘缺少哪些关键信息？请列出报价前需要向客户确认的问题。")}>
+            <button onClick={() => setInput("请检查这封询盘的信息缺口：We need 500 household coffee makers for Malaysia.")}>
               检查信息缺口
             </button>
-            <button onClick={() => setInput("请根据询盘中的商品和目标国家，分析市场机会并给出下一步跟进动作。")}>
+            <button onClick={() => setInput("分析这封询盘并规划跟进：We need 500 household coffee makers for Malaysia, delivery in March.")}>
               规划跟进动作
             </button>
           </div>
@@ -394,10 +394,24 @@ function MessageBubble({ message }: { message: ChatBubble }) {
 }
 
 function ToolBadge({ message }: { message: ToolRecord }) {
+  const names: Record<string, string> = {
+    analyze_inquiry: "询盘结构化分析",
+    resolve_product: "商品编码匹配",
+    analyze_markets: "目标市场分析",
+  };
+  let resultSummary = "";
+  if (message.result) {
+    try {
+      const parsed = JSON.parse(message.result) as { summary?: string; error?: { message?: string } };
+      resultSummary = parsed.summary || parsed.error?.message || "";
+    } catch {
+      resultSummary = "结果已返回";
+    }
+  }
   return (
     <div className="tool-row">
       <span className={`tool-status ${message.status}`} />
-      <span className="tool-name">{message.name}</span>
+      <span className="tool-name">{names[message.name] || message.name}</span>
       <span className="tool-state">
         {message.status === "running"
           ? "调用中…"
@@ -405,7 +419,7 @@ function ToolBadge({ message }: { message: ToolRecord }) {
             ? "失败"
             : "完成"}
       </span>
-      {message.result && <span className="tool-result">{message.result}</span>}
+      {resultSummary && <span className="tool-result">{resultSummary}</span>}
     </div>
   );
 }

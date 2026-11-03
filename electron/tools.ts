@@ -2,11 +2,12 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { app } from 'electron'
 import type { ToolSchema } from './runtime'
+import { buildInquiryAnalysis, type InquiryAnalysisInput } from './inquiry'
 
 export type EvidenceItem = { source: string; period?: string; scope?: string; note?: string }
 export type DataQuality = {
   status: 'OK' | 'PARTIAL' | 'UNAVAILABLE'
-  sourceType: 'SIMULATED_DEMO' | 'PUBLIC_DATA' | 'MIXED'
+  sourceType: 'SIMULATED_DEMO' | 'PUBLIC_DATA' | 'USER_PROVIDED' | 'MIXED'
   missing: string[]
   warnings: string[]
   forecastMethod?: string
@@ -100,6 +101,57 @@ function invalid(summary: string, code: string, message: string, warning: string
   return wrap({ ok: false, summary, evidence: [], dataQuality: { ...QUALITY, status: 'UNAVAILABLE' }, warnings: [warning], error: { code, message } })
 }
 
+const analyzeInquiry: ToolDefinition = {
+  schema: {
+    type: 'function',
+    function: {
+      name: 'analyze_inquiry',
+      description: '把用户提供的跨境询盘整理成结构化字段，计算信息完整度，并生成缺口、风险提示和报价前追问清单。只能提取原文明确出现的信息，禁止猜测。',
+      parameters: {
+        type: 'object',
+        properties: {
+          original_text: { type: 'string', description: '用户提供的完整询盘原文，必须忠实保留' },
+          product_name: { type: 'string', description: '原文明确提到的商品名称；没有则省略' },
+          target_market: { type: 'string', description: '原文明确提到的最终目的国家或地区；没有则省略' },
+          target_market_iso3: { type: 'string', description: '目标国家的ISO3代码；仅在目标国家明确时填写' },
+          quantity: { type: 'string', description: '采购数量和单位，保留原文表达；没有则省略' },
+          specifications: { type: 'array', items: { type: 'string' }, description: '原文明确给出的型号、尺寸、电压、材质、用途等规格' },
+          buyer_company: { type: 'string', description: '原文明确出现的采购方公司名称' },
+          delivery_requirement: { type: 'string', description: '原文明确出现的交期、目的港或收货地点' },
+          trade_term: { type: 'string', description: '原文明确出现的EXW、FOB、CIF等贸易术语' },
+          payment_terms: { type: 'string', description: '原文明确出现的付款方式或付款节点' },
+          certifications: { type: 'array', items: { type: 'string' }, description: '原文明确提出的认证、测试或标签要求' },
+          deadline: { type: 'string', description: '原文明确出现的报价截止时间或项目截止时间' }
+        },
+        required: ['original_text']
+      }
+    }
+  },
+  execute: (args) => {
+    try {
+      const data = buildInquiryAnalysis(args as InquiryAnalysisInput)
+      const warnings = data.missing_fields.length
+        ? ['询盘仍有信息缺口，正式报价前应向客户确认。']
+        : []
+      return wrap({
+        ok: true,
+        summary: `已提取${data.known_field_count}项关键信息，发现${data.missing_fields.length}项待确认内容。`,
+        data,
+        evidence: [{ source: '用户提供的询盘原文', scope: '当前对话', note: '结构化字段仅来自原文明确内容' }],
+        dataQuality: {
+          status: data.missing_fields.length ? 'PARTIAL' : 'OK',
+          sourceType: 'USER_PROVIDED',
+          missing: data.missing_fields.map((field) => field.key),
+          warnings,
+        },
+        warnings,
+      })
+    } catch (error) {
+      return invalid('询盘解析失败。', 'INVALID_INQUIRY', error instanceof Error ? error.message : String(error), '请提供非空的询盘原文。')
+    }
+  }
+}
+
 const resolveProduct: ToolDefinition = {
   schema: {
     type: 'function',
@@ -151,54 +203,12 @@ const analyzeMarkets: ToolDefinition = {
   }
 }
 
-const analyzeCustomers: ToolDefinition = {
-  schema: {
-    type: 'function',
-    function: {
-      name: 'analyze_customers',
-      description: '分析项目客户数据：RFM+G+I、K-means客户分群、交易价值S/A/B/C、流失风险规则评分和画像。当前客户与交易数据为比赛模拟数据，不能表述为真实客户或流失概率。',
-      parameters: {
-        type: 'object',
-        properties: {
-          market: { type: 'string', description: '可选ISO3市场，用于联动筛选' },
-          observation_date: { type: 'string', description: '可选观察日，默认2025-12-31' }
-        },
-        required: []
-      }
-    }
-  },
-  execute: async (args) => wrap(await callPython('analyze_customers', args))
-}
-
-const recommendOperations: ToolDefinition = {
-  schema: {
-    type: 'function',
-    function: {
-      name: 'recommend_operations',
-      description: '根据市场分析和客户分析生成市场×客户策略。必须提供前两个工具的结构化data。只允许动作方向，禁止具体价格、折扣、账期和赠品。',
-      parameters: {
-        type: 'object',
-        properties: {
-          market_analysis: { type: 'object', description: 'analyze_markets返回的data对象' },
-          customer_analysis: { type: 'object', description: 'analyze_customers返回的data对象' },
-          target_market: { type: 'string', description: '目标市场ISO3' }
-        },
-        required: ['market_analysis', 'customer_analysis']
-      }
-    }
-  },
-  execute: async (args) => {
-    if (!args.market_analysis || !args.customer_analysis) return invalid('生成策略前必须先完成市场分析和客户分析。', 'ANALYSIS_PREREQUISITE_REQUIRED', '缺少市场或客户分析结果', '请先调用analyze_markets和analyze_customers。')
-    return wrap(await callPython('recommend_operations', args))
-  }
-}
-
-export const toolRegistry: ToolDefinition[] = [resolveProduct, analyzeMarkets, analyzeCustomers, recommendOperations]
+export const toolRegistry: ToolDefinition[] = [analyzeInquiry, resolveProduct, analyzeMarkets]
 export function toolSchemas(): ToolSchema[] { return toolRegistry.map((tool) => tool.schema) }
 
 export async function executeTool(name: string, argsText: string): Promise<ToolResult> {
   const tool = toolRegistry.find((item) => item.schema.function.name === name)
-  if (!tool) return invalid(`未注册的工具：${name}`, 'UNKNOWN_TOOL', name, '请使用已注册的四个业务工具。')
+  if (!tool) return invalid(`未注册的工具：${name}`, 'UNKNOWN_TOOL', name, '请使用已注册的询盘解析、商品解析和市场分析工具。')
   try {
     const parsed: unknown = argsText.trim() ? JSON.parse(argsText) : {}
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('工具参数必须是JSON对象')

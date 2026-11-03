@@ -4,22 +4,9 @@ import { executeTool, toolSchemas } from './tools'
 
 const MAX_TOOL_ROUNDS = 6
 
-function hasSuccessfulTool(messages: ChatMessage[], name: string): boolean {
-  return messages.some((message) => {
-    if (message.role !== 'tool' || message.name !== name) return false
-    try {
-      const parsed = JSON.parse(message.content) as { ok?: boolean; evidence?: unknown[]; data?: unknown }
-      return parsed.ok === true && Array.isArray(parsed.evidence) && parsed.evidence.length > 0 && parsed.data !== undefined
-    } catch { return false }
-  })
-}
-
-function validateToolPrerequisite(name: string, argsText: string, messages: ChatMessage[]): { code: string; message: string } | null {
+function validateToolPrerequisite(name: string, argsText: string): { code: string; message: string } | null {
   if (name === 'analyze_markets' && !/^\d{6}$/.test((() => { try { return String((JSON.parse(argsText) as Record<string, unknown>).confirmed_hs6 || '') } catch { return '' } })())) {
     return { code: 'HS_CONFIRMATION_REQUIRED', message: '市场分析必须使用用户确认的6位HS编码。' }
-  }
-  if (name === 'recommend_operations' && (!hasSuccessfulTool(messages, 'analyze_markets') || !hasSuccessfulTool(messages, 'analyze_customers'))) {
-    return { code: 'ANALYSIS_PREREQUISITE_REQUIRED', message: '生成策略前必须先完成并获得有证据的市场分析和客户分析。' }
   }
   return null
 }
@@ -71,7 +58,7 @@ export async function runAgentTurn(options: {
       messages.push({ role: 'assistant', content: result.content, tool_calls: result.toolCalls })
       for (const call of result.toolCalls) {
         emit({ type: 'tool_start', callId: call.id, name: call.function.name, argsText: call.function.arguments })
-        const prerequisite = validateToolPrerequisite(call.function.name, call.function.arguments, messages)
+        const prerequisite = validateToolPrerequisite(call.function.name, call.function.arguments)
         const toolResult = prerequisite
           ? { ok: false, content: JSON.stringify({ ok: false, summary: prerequisite.message, evidence: [], dataQuality: { status: 'UNAVAILABLE', sourceType: 'MIXED', missing: [], warnings: [] }, warnings: ['请按工具前置条件补齐信息。'], error: prerequisite }) }
           : await executeTool(call.function.name, call.function.arguments)

@@ -182,7 +182,7 @@ export function WorldMap({ markets, selected, focused, onSelect }: { markets: Ma
     </g>
     {!focused && <g className="wb-continent-labels"><text x="213" y="123">北美洲</text><text x="301" y="302">南美洲</text><text x="485" y="218">非洲</text><text x="496" y="81">欧洲</text><text x="682" y="110">亚洲</text><text x="790" y="307">大洋洲</text></g>}
     {pins.map(({market:m,gx,gy,label,focusedLabel})=>{const x=focused?gx*2.4-1315:gx,y=focused?gy*2.4-190:gy;const [lx,ly]=label;const [labelX,labelY]=focused?focusedLabel:[lx,ly];return <g key={m.market} data-market={m.market} className={`wb-pin ${selected===m.market?'selected':''}`} role="button" tabIndex={0} aria-label={`${m.name_cn}，排名第${m.rank}，${score(m.total_score)}分`} onClick={()=>selectMarket(m.market,{x:labelX,y:labelY})} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(m.market,{x:labelX,y:labelY});}}}>
-      <title>{m.name_cn} · 第 {m.rank} 名 · {score(m.total_score)} 分</title><line x1={x} y1={y} x2={labelX} y2={labelY} stroke="#7ca5c1" strokeWidth="1"/><circle cx={x} cy={y} r="4" fill="#5c96bc" stroke="white" strokeWidth="2"/>
+      <title>{`${m.name_cn} · 第 ${m.rank} 名 · ${score(m.total_score)} 分`}</title><line x1={x} y1={y} x2={labelX} y2={labelY} stroke="#7ca5c1" strokeWidth="1"/><circle cx={x} cy={y} r="4" fill="#5c96bc" stroke="white" strokeWidth="2"/>
       <g transform={`translate(${labelX},${labelY})`}><rect x="-18" y="-18" width={focused?126:35} height="36" rx="18" className="wb-pin-bg"/><circle r="14" className={`wb-medal medal-${m.rank <= 3 ? m.rank : 'other'}`}/><text y="5" textAnchor="middle" className="wb-pin-rank">{m.rank}</text>{focused&&<text x="23" y="5" className="wb-pin-name">{m.name_cn}</text>}</g>
     </g>;})}
     </g>
