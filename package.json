@@ -1,8 +1,8 @@
 {
-  "name": "maozhi-global",
+  "name": "trade-inquiry-assistant",
   "version": "0.1.0",
   "private": true,
-  "description": "贸智全球桌面端 Agent 骨架",
+  "description": "跨境询盘分析与市场决策助手",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsc -p electron/tsconfig.json --watch --preserveWatchOutput\" \"wait-on http://127.0.0.1:5173 dist-electron/main.js && electron .\"",
@@ -13,8 +13,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "build": {
-    "appId": "com.maozhi.global",
-    "productName": "贸智全球",
+    "appId": "com.trade.inquiry",
+    "productName": "贸询智答",
     "directories": { "output": "release" },
     "files": ["dist", "dist-electron", "python", "data", "package.json"],
     "asarUnpack": ["python/**", "data/**"],

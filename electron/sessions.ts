@@ -6,7 +6,7 @@ import type { ChatMessage } from './runtime'
 
 export type Session = { id: string; title: string; createdAt: string; updatedAt: string; messages: ChatMessage[] }
 
-const WELCOME_MESSAGE = '你好，我是贸智全球助手。告诉我你想分析的产品、市场或客户问题，我们可以先从需求梳理开始。'
+const WELCOME_MESSAGE = '你好，我是贸询智答。把客户询盘、商品和目标市场发给我，我会帮你提取关键信息、核验市场机会，并整理下一步跟进问题。'
 const DEFAULT_TITLE = '新对话'
 
 const sessionsDir = () => path.join(app.getPath('userData'), 'sessions')

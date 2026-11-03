@@ -15,7 +15,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     backgroundColor: '#f4f7fb',
-    title: '贸智全球',
+    title: '贸询智答',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

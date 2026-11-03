@@ -229,9 +229,9 @@ function App() {
       <aside className="chat-panel">
         <header className="chat-header">
           <div>
-            <div className="panel-title">决策助手</div>
+            <div className="panel-title">询盘决策助手</div>
             <div className="panel-status">
-              <span className="online-dot" /> Agent 模式 · 已接入四项业务分析工具
+              <span className="online-dot" /> Agent 模式 · 询盘解析与市场分析
             </div>
           </div>
           <div className="header-actions" ref={historyAnchorRef}>
@@ -289,12 +289,14 @@ function App() {
         </div>
         <div className="composer-wrap">
           <div className="quick-prompts">
-            <button onClick={() => setInput("你好")}>打个招呼（触发工具）</button>
-            <button onClick={() => setInput("我想了解这个系统现在能做什么")}>
-              了解系统
+            <button onClick={() => setInput("帮我分析这封询盘：We need 500 household coffee makers for Malaysia.")}>
+              分析示例询盘
             </button>
-            <button onClick={() => setInput("我卖家用咖啡机，想进入海外市场")}>
-              试试完整问题
+            <button onClick={() => setInput("这封询盘缺少哪些关键信息？请列出报价前需要向客户确认的问题。")}>
+              检查信息缺口
+            </button>
+            <button onClick={() => setInput("请根据询盘中的商品和目标国家，分析市场机会并给出下一步跟进动作。")}>
+              规划跟进动作
             </button>
           </div>
           <form className="composer" onSubmit={sendMessage}>
