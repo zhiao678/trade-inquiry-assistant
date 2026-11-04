@@ -13,30 +13,7 @@
 
 在项目根目录打开 PowerShell。首次安装需要联网。
 
-### 1. 准备数据库（二选一）
-
-**方式 A：直接下载（推荐给评委）**
-
-从项目 [Releases](https://github.com/zhiao678/trade-inquiry-assistant/releases) 下载 `trade-inquiry-database.zip`，把压缩包放到项目根目录后执行：
-
-```powershell
-Expand-Archive .\trade-inquiry-database.zip -DestinationPath .\data -Force
-```
-
-解压后应得到 `data/trade-inquiry.duckdb`。文件大小为 `327,954,432` 字节，SHA-256 为：
-
-```text
-1DAB0913C9D9A895831FDC4A72EE57CCA3D50AC421C0EA714968DA72E025A271
-```
-
-可在 PowerShell 中校验：
-
-```powershell
-Get-Item .\data\trade-inquiry.duckdb
-Get-FileHash .\data\trade-inquiry.duckdb -Algorithm SHA256
-```
-
-**方式 B：使用 Git LFS**
+### 1. 拉取 Git LFS 数据
 
 安装 [Git for Windows](https://git-scm.com/download/win) 后，在项目根目录执行：
 
@@ -46,7 +23,7 @@ git lfs pull
 git lfs ls-files
 ```
 
-确认 `data/trade-inquiry.duckdb` 已下载为实际数据库文件，而不是几十字节的 LFS 指针文件。两种方式得到的是同一个数据库，不需要重复操作。
+确认 `data/trade-inquiry.duckdb` 已下载为实际数据库文件，而不是几十字节的 LFS 指针文件。
 
 ### 2. 安装 Node.js
 
@@ -109,7 +86,7 @@ npm run dev
 | 现象 | 处理方式 |
 | --- | --- |
 | **没有 API Key**，提示“请先在右上角配置 LLM API Key” | 应用仍可打开，但不能调用智能助手。填写 `.env` 后重启 `npm run dev`，或在右上角“模型连接”中填写并保存。 |
-| **数据库不存在**，提示 `业务数据库不存在` 或分析工具不可用 | 优先从 Releases 下载数据库 ZIP 并解压到 `data`；也可以重新执行 `git lfs install` 和 `git lfs pull`。确认最终路径是 `data/trade-inquiry.duckdb`，并核对上面的文件大小或 SHA-256。 |
+| **数据库不存在**，提示 `业务数据库不存在` 或分析工具不可用 | 关闭应用，在项目根目录重新执行 `git lfs install` 和 `git lfs pull`。确认最终路径是 `data/trade-inquiry.duckdb`，且不是几十字节的 LFS 指针文件。 |
 | **证书错误**，如 `self-signed certificate`、`unable to verify` | 检查系统时间、代理和 `.env` 中的 `*_BASE_URL`，优先使用服务商官方 HTTPS 地址。企业代理拦截 HTTPS 时，应安装企业根证书或更换网络；不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0` 关闭证书校验。 |
 | **Python Worker 启动失败** | 确认 `Test-Path .\.venv\Scripts\python.exe` 返回 `True`，并重新执行第 3 步的依赖安装，然后重启应用。 |
 
