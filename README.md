@@ -1,61 +1,82 @@
 # 贸询智答：跨境询盘分析与市场决策助手
 
-贸询智答面向中小外贸企业，把一封客户询盘转化为可执行的市场判断和跟进清单，帮助用户回答：
-
-> 这封询盘说了什么？目标市场是否值得跟进？报价前还需要确认什么？
-
-项目属于“金融经贸”方向，核心演示链路为：
+贸询智答面向外贸业务人员，把一封客户询盘整理成可执行的下一步：
 
 ```text
-客户询盘
-  -> 关键信息提取与完整度检查
-  -> 信息缺口、风险提示与追问清单
-  -> HS 编码候选与人工确认
-  -> RCEP 市场机会分析
-  -> 英文追问邮件与跟进动作
+询盘原文 → 提取商品与商务条件 → 检查信息缺口 → 确认 HS 编码
+        → 核验目标市场 → 生成报价前追问和英文跟进邮件
 ```
 
-## 核心能力
+项目保留市场分析作为询盘决策的证据模块：可以查看 RCEP 15 个市场的进口规模、增长、中国供应份额、关税和趋势预测。客户与交易数据不参与当前主流程。
 
-- 将询盘原文整理为商品、市场、数量、规格、交付、贸易术语、付款和认证等结构化字段；
-- 按字段权重计算询盘完整度，标记报价风险并生成逐项追问清单；
-- 解析商品名称或 HS 编码，并要求用户确认名称检索得到的候选编码；
-- 基于公开贸易、宏观和关税数据进行市场横向比较；
-- 输出进口规模、增长、关税、中国供应份额和趋势预测等指标；
-- 根据已确认的信息缺口生成专业英文追问邮件，不补写客户未提供的信息；
-- 支持 DeepSeek 和 OpenAI Compatible Chat Completions Provider。
+## Windows 快速启动
 
-## 数据边界
+在项目根目录打开 PowerShell。首次安装需要联网。
 
-- 市场、贸易、宏观和关税分析使用公开数据；
-- 询盘结构化字段仅来自用户原文，系统不会自行补全缺失的商务事实；
-- 市场综合分是本次候选市场内的相对排序，不是成交概率；
-- 项目不判断客户信用或询盘真伪，也不编造价格、付款、物流或成交承诺。
+### 1. 准备数据库（二选一）
 
-## 本地开发
+**方式 A：直接下载（推荐给评委）**
 
-```bash
-npm install
-npm run dev
-```
-
-Python 分析 Worker 读取本地 DuckDB。Windows 初始化：
+从项目 [Releases](https://github.com/zhiao678/trade-inquiry-assistant/releases) 下载 `trade-inquiry-database.zip`，把压缩包放到项目根目录后执行：
 
 ```powershell
+Expand-Archive .\trade-inquiry-database.zip -DestinationPath .\data -Force
+```
+
+解压后应得到 `data/trade-inquiry.duckdb`。文件大小为 `327,954,432` 字节，SHA-256 为：
+
+```text
+1DAB0913C9D9A895831FDC4A72EE57CCA3D50AC421C0EA714968DA72E025A271
+```
+
+可在 PowerShell 中校验：
+
+```powershell
+Get-Item .\data\trade-inquiry.duckdb
+Get-FileHash .\data\trade-inquiry.duckdb -Algorithm SHA256
+```
+
+**方式 B：使用 Git LFS**
+
+安装 [Git for Windows](https://git-scm.com/download/win) 后，在项目根目录执行：
+
+```powershell
+git lfs install
+git lfs pull
+git lfs ls-files
+```
+
+确认 `data/trade-inquiry.duckdb` 已下载为实际数据库文件，而不是几十字节的 LFS 指针文件。两种方式得到的是同一个数据库，不需要重复操作。
+
+### 2. 安装 Node.js
+
+安装 Node.js LTS（建议 20 或更高版本），检查：
+
+```powershell
+node --version
+npm --version
+```
+
+### 3. 安装 Python Worker
+
+安装 Python 3.11 或更高版本，并创建虚拟环境：
+
+```powershell
+py --version
 py -m venv .venv
-.\.venv\Scripts\pip.exe install -r .\python\requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r .\python\requirements.txt
 ```
 
-macOS/Linux：
+### 4. 配置 API Key
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r python/requirements.txt
+复制环境变量模板并编辑：
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-项目默认读取 `data/trade-inquiry.duckdb`。该数据库使用 Git LFS 管理，包含公开贸易、宏观、关税和商品编码数据。
-
-首次使用前，在项目根目录复制 `.env.example` 为 `.env` 并配置 LLM：
+例如使用 DeepSeek：
 
 ```dotenv
 DEEPSEEK_API_KEY=sk-你的Key
@@ -63,32 +84,47 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-也可以在应用设置中填写 OpenAI Compatible Provider。不要把真实 API Key 提交到仓库。
+也可以启动后点击右上角“模型连接”填写。Key 只保存在本机配置中，不要提交到 Git。
 
-## 验证命令
+### 5. 安装并启动
 
-```bash
+```powershell
+npm ci
+npm run dev
+```
+
+窗口打开后，可直接粘贴询盘；也可以点击“分析示例询盘”开始演示。建议顺序是：先看询盘速览和信息缺口，再确认 HS 编码，最后查看目标市场和英文追问邮件。
+
+## 评委演示重点
+
+- `analyze_inquiry`：提取商品、国家、数量、规格、交付、贸易术语、付款和认证等字段，计算完整度并生成风险与追问清单；
+- `resolve_product`：根据商品名称给出 HS 编码候选，名称检索结果必须由用户确认；
+- `analyze_markets`：基于已确认 HS 编码分析目标市场；询盘指定国家时重点展示该国，没有指定时可比较 RCEP 15 国；
+- 英文追问邮件：只根据询盘中真实存在的信息缺口生成，不补写客户没有提供的商务条件。
+
+项目不判断客户信用或询盘真伪，不编造成交概率、最低报价、账期、物流承诺或竞品价格。市场综合分是本次候选市场内的相对排序，不是成交概率。
+
+## 常见问题
+
+| 现象 | 处理方式 |
+| --- | --- |
+| **没有 API Key**，提示“请先在右上角配置 LLM API Key” | 应用仍可打开，但不能调用智能助手。填写 `.env` 后重启 `npm run dev`，或在右上角“模型连接”中填写并保存。 |
+| **数据库不存在**，提示 `业务数据库不存在` 或分析工具不可用 | 优先从 Releases 下载数据库 ZIP 并解压到 `data`；也可以重新执行 `git lfs install` 和 `git lfs pull`。确认最终路径是 `data/trade-inquiry.duckdb`，并核对上面的文件大小或 SHA-256。 |
+| **证书错误**，如 `self-signed certificate`、`unable to verify` | 检查系统时间、代理和 `.env` 中的 `*_BASE_URL`，优先使用服务商官方 HTTPS 地址。企业代理拦截 HTTPS 时，应安装企业根证书或更换网络；不要使用 `NODE_TLS_REJECT_UNAUTHORIZED=0` 关闭证书校验。 |
+| **Python Worker 启动失败** | 确认 `Test-Path .\.venv\Scripts\python.exe` 返回 `True`，并重新执行第 3 步的依赖安装，然后重启应用。 |
+
+## 可选自检
+
+不调用大模型，只检查 Python、数据库、商品解析和市场分析链路：
+
+```powershell
+npm run test:worker
+npm run test:ui
+```
+
+类型检查和生产构建：
+
+```powershell
 npm run typecheck
 npm run build
-npm run test:ui
-npm run test:worker
 ```
-
-界面回归测试会验证询盘完整度、信息缺口、准备状态、结果展示和新询盘状态重置；Worker 冒烟测试用于保护底层数据库与市场算法兼容性。
-
-## 演示问题
-
-```text
-帮我分析这封询盘：We need 500 household coffee makers for Malaysia.
-请提取关键信息、确认商品编码，并评估目标市场。
-```
-
-建议演示顺序：先展示询盘信息提取、完整度和追问清单，再确认 HS 编码并查看目标市场证据，最后生成英文追问邮件。
-
-## 打包
-
-```bash
-npm run dist
-```
-
-`electron-builder` 会按当前平台生成安装包。正式比赛提交前，应在目标机器上实测未登录用户能否运行应用、访问仓库和观看演示视频。
